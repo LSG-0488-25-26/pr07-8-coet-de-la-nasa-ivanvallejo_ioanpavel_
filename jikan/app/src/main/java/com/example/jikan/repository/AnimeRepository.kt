@@ -2,39 +2,30 @@ package com.example.jikan.repository
 
 import android.util.Log
 import com.example.jikan.ApiInterface.ApiInterface
+import com.example.jikan.Data.AnimeDao
 import com.example.jikan.Model.AnimeData
-class AnimeRepository(private val api: ApiInterface) {
+import com.example.jikan.Model.AnimeEntity
+
+class AnimeRepository(private val api: ApiInterface, private val dao: AnimeDao) {
 
     suspend fun getTopAnimes(): List<AnimeData>? {
         return try {
-            Log.d("AnimeRepository", "Fetching top animes...")
-
-            // Obtener las primeras 2 páginas para tener 50 animes
-            val page1 = api.getTopAnime(page = 1, limit = 25)
-            val page2 = api.getTopAnime(page = 2, limit = 25)
-
-            Log.d("AnimeRepository", "Page 1 code: ${page1.code()}")
-            Log.d("AnimeRepository", "Page 2 code: ${page2.code()}")
+            val response1 = api.getTopAnime(page = 1)
+            val response2 = api.getTopAnime(page = 2)
 
             val allAnimes = mutableListOf<AnimeData>()
+            response1.body()?.data?.let { allAnimes.addAll(it) }
+            response2.body()?.data?.let { allAnimes.addAll(it) }
 
-            if (page1.isSuccessful) {
-                page1.body()?.data?.let { allAnimes.addAll(it) }
+            if (allAnimes.isNotEmpty()) {
+                // Mapear de AnimeData (API) a AnimeEntity (Room)
+                val entities = allAnimes.map {
+                    AnimeEntity(it.malId, it.title, it.images?.jpg?.imageUrl ?: "", it.score ?: 0.0)
+                }
+                dao.deleteAll()
+                dao.insertAnimes(entities)
             }
-
-            if (page2.isSuccessful) {
-                page2.body()?.data?.let { allAnimes.addAll(it) }
-            }
-
-            Log.d("AnimeRepository", "Success! Got ${allAnimes.size} animes total")
-
-            if (allAnimes.isEmpty()) {
-                Log.e("AnimeRepository", "No animes received")
-                null
-            } else {
-                allAnimes
-            }
-
+            allAnimes
         } catch (e: Exception) {
             Log.e("AnimeRepository", "Exception fetching animes", e)
             e.printStackTrace()

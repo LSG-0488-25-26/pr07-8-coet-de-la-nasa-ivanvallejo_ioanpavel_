@@ -24,6 +24,13 @@ class AnimeViewModel(private val repository: AnimeRepository) : ViewModel() {
     private val _error = MutableLiveData<String?>()
     val error: LiveData<String?> = _error
 
+    private val _searchText = MutableLiveData("")
+    val searchText: LiveData<String> = _searchText
+
+    fun onSearchTextChange(text: String) {
+        _searchText.value = text
+    }
+
     fun loadTopAnimes() {
         viewModelScope.launch {
             _isLoading.value = true

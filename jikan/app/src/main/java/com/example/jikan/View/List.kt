@@ -6,15 +6,21 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.BottomAppBar
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -25,6 +31,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.livedata.observeAsState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.unit.dp
 import com.example.jikan.viewModel.AnimeViewModel
 
@@ -36,7 +43,18 @@ fun AnimeListScreen(
 ) {
     val animeList by viewModel.animeList.observeAsState(emptyList())
     val isLoading by viewModel.isLoading.observeAsState(false)
+    val searchText by viewModel.searchText.observeAsState("")
     val error by viewModel.error.observeAsState()
+
+    val config = LocalConfiguration.current
+    val columns = when {
+        config.screenWidthDp >= 600 -> 4 // Tablet
+        else -> 2 // Móvil
+    }
+
+    val filteredList = animeList.filter {
+        it.title.contains(searchText, ignoreCase = true)
+    }
 
     LaunchedEffect(Unit) {
         viewModel.loadTopAnimes()
@@ -44,12 +62,23 @@ fun AnimeListScreen(
 
     Scaffold(
         topBar = {
-            TopAppBar(
-                title = { Text("Top 50 Anime") },
-                colors = TopAppBarDefaults.topAppBarColors(
-                    containerColor = MaterialTheme.colorScheme.primaryContainer
+            Column {
+                TopAppBar(title = { Text("Jikan Anime") })
+                // REQUISITO: SEARCHBAR
+                OutlinedTextField(
+                    value = searchText,
+                    onValueChange = { viewModel.onSearchTextChange(it) },
+                    modifier = Modifier.fillMaxWidth().padding(8.dp),
+                    placeholder = { Text("Buscar...") },
+                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) }
                 )
-            )
+            }
+        },
+        bottomBar = {
+            // REQUISITO: BOTTOMBAR
+            BottomAppBar {
+                Text(modifier = Modifier.padding(16.dp), text = "Resultados: ${filteredList.size}")
+            }
         }
     ) { paddingValues ->
         Box(
@@ -86,12 +115,12 @@ fun AnimeListScreen(
                 }
                 else -> {
                     LazyVerticalGrid(
-                        columns = GridCells.Fixed(2),
+                        columns = GridCells.Fixed(columns),
                         contentPadding = PaddingValues(8.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        items(animeList) { anime ->
+                        items(filteredList) { anime ->
                             AnimeGridItem(
                                 anime = anime,
                                 onClick = { onAnimeClick(anime.malId) }
